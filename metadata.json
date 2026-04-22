@@ -1,0 +1,6 @@
+{
+  "name": "EduPulse - School Management System",
+  "description": "A comprehensive platform for teachers to manage attendance, marks, and notes, and for parents to track student progress.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["Firebase Authentication", "Firestore Database", "Real-time Attendance", "Progress Tracking"]
+}
