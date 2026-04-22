@@ -11,7 +11,10 @@ export default function Login() {
 
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
+    provider.setCustomParameters({ 
+      prompt: 'select_account',
+      client_id: '325559471597-moto9si8b81de3n4d3bnsmp70b3e8v0q.apps.googleusercontent.com'
+    });
     try {
       const result = await signInWithPopup(auth, provider);
       console.log("Sign-in successful:", result.user);
