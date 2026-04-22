@@ -4,5 +4,22 @@ dist/
 coverage/
 .DS_Store
 *.log
-.env*
-!.env.example
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+.env.production.local
+
+# Firebase config files (contains sensitive keys)
+firebase-applet-config.json
+firebase-blueprint.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
