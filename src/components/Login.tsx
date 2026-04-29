@@ -1,29 +1,36 @@
 import React, { useState } from 'react';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useAuth } from './AuthProvider';
-import { LogIn, School, UserRound, GraduationCap } from 'lucide-react';
-import { motion } from 'motion/react';
+import { LogIn, School, UserRound, GraduationCap, Mail, Lock, User as UserIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function Login() {
-  const { profile, setRole } = useAuth();
-  const [selectingRole, setSelectingRole] = useState(false);
+  const { user, profile, setRole } = useAuth();
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleGoogleSignIn = async () => {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ 
-      prompt: 'select_account',
-      client_id: '325559471597-moto9si8b81de3n4d3bnsmp70b3e8v0q.apps.googleusercontent.com'
-    });
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    
     try {
-      const result = await signInWithPopup(auth, provider);
-      console.log("Sign-in successful:", result.user);
-      setSelectingRole(true);
-    } catch (error: any) {
-      console.error("Sign-in error code:", error.code);
-      console.error("Sign-in error message:", error.message);
-      console.error("Full error:", error);
-      alert(`Sign-in failed: ${error.message || 'Unknown error'}`);
+      if (isLogin) {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        const result = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(result.user, { displayName: name });
+      }
+    } catch (err: any) {
+      console.error("Auth error:", err);
+      setError(err.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -31,7 +38,8 @@ export default function Login() {
     await setRole(role);
   };
 
-  if (selectingRole && !profile) {
+  // If the user has authenticated but hasn't selected a role yet (e.g. just signed up)
+  if (user && !profile) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <motion.div 
@@ -47,7 +55,6 @@ export default function Login() {
           
           <div className="grid grid-cols-2 gap-4">
             <button
-              id="role-teacher-btn"
               onClick={() => handleRoleSelection('teacher')}
               className="flex flex-col items-center p-6 border-2 border-slate-100 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all group"
             >
@@ -55,7 +62,6 @@ export default function Login() {
               <span className="font-semibold text-slate-700 group-hover:text-blue-700">Teacher</span>
             </button>
             <button
-              id="role-parent-btn"
               onClick={() => handleRoleSelection('parent')}
               className="flex flex-col items-center p-6 border-2 border-slate-100 rounded-xl hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
             >
@@ -78,38 +84,112 @@ export default function Login() {
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white/5 backdrop-blur-xl p-12 rounded-[2rem] border border-white/10 shadow-2xl max-w-xl w-full relative z-10 text-center"
+        className="bg-white/5 backdrop-blur-xl p-10 rounded-[2rem] border border-white/10 shadow-2xl max-w-md w-full relative z-10"
       >
-        <div className="flex items-center justify-center gap-3 mb-10">
+        <div className="flex items-center justify-center gap-3 mb-8">
           <div className="p-3 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/20">
             <School className="text-white w-8 h-8" />
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">EduPulse</h1>
         </div>
 
-        <h2 className="text-4xl font-extrabold text-white mb-6 leading-tight">
-          Academy Management <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">Perfected.</span>
-        </h2>
-        <p className="text-slate-400 text-[16px] mb-12 max-w-md mx-auto leading-relaxed">
-          The all-in-one portal for modern educators and parents to monitor, manage, and celebrate student achievement.
-        </p>
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-white mb-2">
+            {isLogin ? 'Welcome back' : 'Create an account'}
+          </h2>
+          <p className="text-slate-400 text-sm">
+            {isLogin ? 'Enter your credentials to access the portal' : 'Sign up to start managing student success'}
+          </p>
+        </div>
 
-        <button
-          id="google-signin-btn"
-          onClick={handleGoogleSignIn}
-          className="w-full flex items-center justify-center gap-4 bg-white hover:bg-slate-50 text-[#0f172a] font-bold py-4 px-8 rounded-xl transition-all shadow-xl hover:translate-y-[-2px] active:translate-y-[0px]"
-        >
-          <LogIn className="w-5 h-5 text-blue-600" />
-          Access Portal with Google
-        </button>
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg text-sm mb-6 text-center">
+            {error}
+          </div>
+        )}
 
-        <div className="mt-12 pt-8 border-t border-white/5 flex items-center justify-center gap-8 text-[11px] text-slate-500 uppercase tracking-widest font-semibold">
-           <span>Attendance</span>
-           <span className="w-1 h-1 bg-slate-700 rounded-full"></span>
-           <span>Gradebook</span>
-           <span className="w-1 h-1 bg-slate-700 rounded-full"></span>
-           <span>Resources</span>
+        <form onSubmit={handleAuth} className="space-y-4">
+          <AnimatePresence mode="wait">
+            {!isLogin && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="relative"
+              >
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <UserIcon className="h-5 w-5 text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full bg-white/10 border border-white/20 text-white placeholder-slate-400 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  placeholder="Full Name"
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Mail className="h-5 w-5 text-slate-400" />
+            </div>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-white/10 border border-white/20 text-white placeholder-slate-400 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              placeholder="Email Address"
+            />
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Lock className="h-5 w-5 text-slate-400" />
+            </div>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-white/10 border border-white/20 text-white placeholder-slate-400 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              placeholder="Password"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 px-8 rounded-xl transition-all shadow-lg hover:shadow-blue-500/30 disabled:opacity-70 mt-6"
+          >
+            {loading ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <>
+                <LogIn className="w-5 h-5" />
+                {isLogin ? 'Sign In' : 'Sign Up'}
+              </>
+            )}
+          </button>
+        </form>
+
+        <div className="mt-8 text-center text-sm">
+          <p className="text-slate-400">
+            {isLogin ? "Don't have an account? " : "Already have an account? "}
+            <button
+              type="button"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError('');
+              }}
+              className="text-blue-400 hover:text-blue-300 font-semibold transition-colors"
+            >
+              {isLogin ? 'Create one' : 'Sign in instead'}
+            </button>
+          </p>
         </div>
       </motion.div>
     </div>

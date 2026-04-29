@@ -99,10 +99,14 @@ export default function TeacherDashboard() {
   ];
 
   return (
-    <div className="flex min-h-screen bg-[#f8fafc] text-[#1e293b] font-sans">
+    <div className="flex min-h-screen bg-slate-50 text-slate-800 font-sans relative overflow-hidden">
+      {/* Background blobs for premium feel */}
+      <div className="absolute top-0 -left-10 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-blob"></div>
+      <div className="absolute top-0 -right-10 w-96 h-96 bg-indigo-300 rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-blob animation-delay-2000"></div>
+      <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-96 h-96 bg-emerald-300 rounded-full mix-blend-multiply filter blur-[128px] opacity-30 animate-blob animation-delay-4000"></div>
       {/* Sidebar */}
-      <div className="w-[240px] bg-[#0f172a] text-[#f8fafc] flex flex-col border-r border-[#e2e8f0]">
-        <div className="p-6 font-bold text-xl border-b border-[#1e293b] flex items-center gap-3">
+      <div className="w-[260px] bg-gradient-to-b from-slate-900 to-indigo-950 text-slate-50 flex flex-col border-r border-white/10 relative z-10 shadow-2xl">
+        <div className="p-6 font-bold text-xl border-b border-white/5 flex items-center gap-3">
           <div className="p-1.5 bg-blue-600 rounded">
             <GraduationCapIcon className="text-white w-5 h-5" />
           </div>
@@ -117,10 +121,10 @@ export default function TeacherDashboard() {
                 key={item.id}
                 onClick={() => setActiveTab(item.id as any)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-6 py-3 text-[14px] transition-colors cursor-pointer",
+                  "w-full flex items-center gap-3 px-6 py-3.5 text-[15px] transition-all cursor-pointer relative",
                   isActive 
-                    ? "bg-[#3b82f6] text-white font-semibold" 
-                    : "text-[#94a3b8] hover:bg-[#1e293b] hover:text-white"
+                    ? "bg-white/10 text-white font-semibold border-r-4 border-blue-400" 
+                    : "text-slate-400 hover:bg-white/5 hover:text-white"
                 )}
               >
                 <item.icon className={cn("w-4 h-4", isActive ? "text-white" : "text-[#64748b]")} />
@@ -138,7 +142,7 @@ export default function TeacherDashboard() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
-        <header className="h-16 bg-white border-b border-[#e2e8f0] flex items-center justify-between px-8 shrink-0">
+        <header className="h-20 glass border-b border-white/40 flex items-center justify-between px-8 shrink-0 relative z-10">
           <div>
             <h2 className="text-[18px] font-semibold text-[#1e293b]">
               {activeTab === 'overview' ? 'School Dashboard' : `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Management`}
@@ -173,7 +177,7 @@ export default function TeacherDashboard() {
                 exit={{ opacity: 0 }}
                 className="grid grid-cols-1 md:grid-cols-3 gap-6"
               >
-                <div className="bg-white p-5 rounded-xl border border-[#e2e8f0] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+                <div className="glass p-6 rounded-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-[14px] font-semibold text-[#64748b]">Total Students</span>
                     <span className="bg-[#ecfdf5] text-[#059669] px-2 py-1 rounded-md text-[11px] font-bold tracking-tight">Active</span>
@@ -196,7 +200,7 @@ export default function TeacherDashboard() {
                 exit={{ opacity: 0 }}
                 className="space-y-6"
               >
-                <div className="bg-white p-5 rounded-xl border border-[#e2e8f0] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+                <div className="glass p-6 rounded-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
                   <h3 className="text-[14px] font-semibold text-[#1e293b] mb-4">Register New Student</h3>
                   <form onSubmit={handleAddStudent} className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <input 
@@ -264,7 +268,7 @@ export default function TeacherDashboard() {
                  animate={{ opacity: 1 }}
                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
               >
-                <div className="lg:col-span-1 bg-white p-5 rounded-xl border border-[#e2e8f0] shadow-[0_1px_3px_rgba(0,0,0,0.05)] flex flex-col h-full">
+                <div className="glass p-6 rounded-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-[14px] font-semibold text-[#64748b]">Attendance Roll Call</span>
                     <span className="bg-[#ecfdf5] text-[#059669] px-2 py-1 rounded-md text-[11px] font-bold tracking-tight">Live</span>
@@ -305,7 +309,7 @@ export default function TeacherDashboard() {
                 animate={{ opacity: 1 }}
                 className="space-y-6"
               >
-                <div className="bg-white p-5 rounded-xl border border-[#e2e8f0] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+                <div className="glass p-6 rounded-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
                   <h3 className="text-[14px] font-semibold text-[#1e293b] mb-4">Entry Results</h3>
                   <form onSubmit={handleAddMark} className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <select 
@@ -351,7 +355,7 @@ export default function TeacherDashboard() {
                 animate={{ opacity: 1 }}
                 className="grid grid-cols-1 md:grid-cols-2 gap-6"
               >
-                <div className="bg-white p-5 rounded-xl border border-[#e2e8f0] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+                <div className="glass p-6 rounded-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
                   <h3 className="text-[14px] font-semibold text-[#1e293b] mb-4">Study Materials & Live Classes</h3>
                   <form onSubmit={handleAddNote} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -395,7 +399,7 @@ export default function TeacherDashboard() {
                   </form>
                 </div>
 
-                <div className="bg-white p-5 rounded-xl border border-[#e2e8f0] shadow-[0_1px_3px_rgba(0,0,0,0.05)] flex flex-col">
+                <div className="glass p-6 rounded-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all flex flex-col">
                   <div className="flex justify-between items-center mb-6">
                     <span className="text-[14px] font-semibold text-[#1e293b]">Upcoming Virtual Activity</span>
                   </div>

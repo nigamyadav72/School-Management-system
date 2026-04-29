@@ -78,9 +78,13 @@ export default function ParentDashboard() {
   const activeStudent = children.find(c => c.id === selectedStudentId);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-[#1e293b] font-sans pb-20">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-20 relative overflow-hidden">
+      {/* Background blobs for premium feel */}
+      <div className="absolute top-0 -left-10 w-[500px] h-[500px] bg-rose-200/50 rounded-full mix-blend-multiply filter blur-[128px] opacity-60 animate-blob"></div>
+      <div className="absolute top-0 -right-10 w-[500px] h-[500px] bg-violet-200/50 rounded-full mix-blend-multiply filter blur-[128px] opacity-60 animate-blob animation-delay-2000"></div>
+      <div className="absolute -bottom-20 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-sky-200/50 rounded-full mix-blend-multiply filter blur-[128px] opacity-50 animate-blob animation-delay-4000"></div>
       {/* Top Header */}
-      <header className="h-16 bg-white border-b border-[#e2e8f0] sticky top-0 z-30 px-8 flex items-center justify-between shadow-sm">
+      <header className="h-20 glass border-b border-white/40 sticky top-0 z-30 px-8 flex items-center justify-between shadow-sm backdrop-blur-xl bg-white/70">
         <div className="flex items-center gap-3">
           <div className="p-1.5 bg-[#0f172a] rounded">
             <Shield className="text-white w-5 h-5" />
@@ -105,7 +109,7 @@ export default function ParentDashboard() {
       <main className="max-w-6xl mx-auto p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Child Selector & Info */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-white p-5 rounded-xl border border-[#e2e8f0] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+          <div className="glass p-6 rounded-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
             <h3 className="text-[14px] font-semibold text-[#64748b] mb-4 uppercase tracking-wider">My Children</h3>
             <div className="space-y-2">
               {children.map(child => (
@@ -169,7 +173,7 @@ export default function ParentDashboard() {
         {/* Content Tabs */}
         <div className="lg:col-span-8 space-y-8">
           {/* Progress Overview Section */}
-          <section className="bg-white rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.05)] border border-[#e2e8f0]">
+          <section className="glass rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all border border-white/60 relative z-10">
             <div className="flex items-center justify-between mb-8">
                <h3 className="text-[16px] font-bold text-[#1e293b] flex items-center gap-2">
                  <FileSpreadsheet className="text-[#3b82f6] w-5 h-5" />
@@ -209,7 +213,7 @@ export default function ParentDashboard() {
           </section>
 
           {/* School Resources & Virtual Classes */}
-          <section className="bg-white rounded-xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.05)] border border-[#e2e8f0]">
+          <section className="glass rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all border border-white/60 relative z-10">
              <h3 className="text-[16px] font-bold text-[#1e293b] flex items-center gap-2 mb-8">
                <Video className="text-[#3b82f6] w-5 h-5" />
                Recent Notes & Resources
