@@ -39,15 +39,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const setRole = async (role: UserRole) => {
     if (!user) return;
-    const profileData: UserProfile = {
-      userId: user.uid,
-      name: user.displayName || 'User',
-      email: user.email || '',
-      role,
-      studentIds: []
-    };
-    await setDoc(doc(db, 'users', user.uid), profileData);
-    setProfile(profileData);
+    try {
+      console.log("Setting role...", role);
+      const profileData: UserProfile = {
+        userId: user.uid,
+        name: user.displayName || 'User',
+        email: user.email || '',
+        role,
+        studentIds: []
+      };
+      await setDoc(doc(db, 'users', user.uid), profileData);
+      console.log("Role saved successfully");
+      setProfile(profileData);
+    } catch (error: any) {
+      console.error("Error setting role:", error);
+      alert(`Failed to save role: ${error.message || 'Unknown error. Have you enabled Firestore Database in your Firebase console?'}`);
+    }
   };
 
   return (
