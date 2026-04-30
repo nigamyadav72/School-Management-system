@@ -89,7 +89,7 @@ export default function TeacherDashboard() {
       const student = students.find(s => s.id === studentId);
       if (!student) return;
 
-      const dateStr = new Date().toISOString().split('T')[0];
+      const dateStr = attendanceDate;
       const record: AttendanceRecord = {
         studentId,
         date: dateStr,
@@ -98,12 +98,23 @@ export default function TeacherDashboard() {
       };
       
       const recordId = `${studentId}_${dateStr}`;
+      
+      // Optimistically update the state for instant UI feedback
+      setAttendanceRecords(prev => {
+        const existingIndex = prev.findIndex(r => r.studentId === studentId);
+        if (existingIndex >= 0) {
+          const newRecords = [...prev];
+          newRecords[existingIndex] = { ...newRecords[existingIndex], status };
+          return newRecords;
+        } else {
+          return [...prev, record];
+        }
+      });
+
       await setDoc(doc(db, 'attendance', recordId), record);
       
-      // Refresh the currently viewed attendance history if it's the same date
-      if (attendanceDate === dateStr) {
-        fetchAttendanceRecords(dateStr);
-      }
+      // Refresh to ensure sync
+      fetchAttendanceRecords(dateStr);
       
     } catch (error) {
       console.error("Error recording attendance:", error);
@@ -272,36 +283,59 @@ export default function TeacherDashboard() {
                   </form>
                 </div>
 
-                <div className="bg-white rounded-xl border border-[#e2e8f0] shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-hidden">
-                  <table className="w-full text-left border-collapse text-[13px]">
-                    <thead className="bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      <tr>
-                        <th className="p-4 text-[#94a3b8] font-medium">Roll No</th>
-                        <th className="p-4 text-[#94a3b8] font-medium">Student Name</th>
-                        <th className="p-4 text-[#94a3b8] font-medium">Class</th>
-                        <th className="p-4 text-[#94a3b8] font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {students.map(student => (
-                        <tr key={student.id} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors group">
-                          <td className="p-4 font-mono text-[12px] text-[#64748b]">{student.rollNumber}</td>
-                          <td className="p-4 font-semibold text-[#1e293b]">{student.name}</td>
-                          <td className="p-4 text-[#64748b]">{student.classId}</td>
-                          <td className="p-4">
-                            <button className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all" onClick={async () => {
-                              if(confirm("Are you sure?")) {
-                                await deleteDoc(doc(db, 'students', student.id));
-                                fetchStudents();
-                              }
-                            }}>
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-6">
+                  {students.length === 0 ? (
+                    <div className="text-center p-8 text-[#64748b] bg-white rounded-xl border border-[#e2e8f0]">No students registered yet.</div>
+                  ) : (
+                    Object.keys(students.reduce((acc, student) => {
+                      if (!acc[student.classId]) acc[student.classId] = [];
+                      acc[student.classId].push(student);
+                      return acc;
+                    }, {} as Record<string, Student[]>)).sort().map(classId => {
+                      const classStudents = students.filter(s => s.classId === classId);
+                      return (
+                        <div key={classId} className="bg-white rounded-xl border border-[#e2e8f0] shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-hidden">
+                          <div className="bg-[#f8fafc] border-b border-[#e2e8f0] p-4 flex justify-between items-center">
+                            <h4 className="font-semibold text-[#1e293b]">Class: {classId}</h4>
+                            <span className="text-[12px] font-medium text-[#64748b] bg-[#e2e8f0] px-2 py-1 rounded-full">{classStudents.length} Students</span>
+                          </div>
+                          <table className="w-full text-left border-collapse text-[13px]">
+                            <thead className="bg-[#f8fafc] border-b border-[#e2e8f0]">
+                              <tr>
+                                <th className="p-4 text-[#94a3b8] font-medium w-24">Roll No</th>
+                                <th className="p-4 text-[#94a3b8] font-medium">Student Name</th>
+                                <th className="p-4 text-[#94a3b8] font-medium w-24 text-right">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {classStudents.sort((a,b) => {
+                                // Try to sort numerically if roll numbers are numbers
+                                const numA = parseInt(a.rollNumber);
+                                const numB = parseInt(b.rollNumber);
+                                if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                                return a.rollNumber.localeCompare(b.rollNumber);
+                              }).map(student => (
+                                <tr key={student.id} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors group">
+                                  <td className="p-4 font-mono text-[12px] text-[#64748b]">{student.rollNumber}</td>
+                                  <td className="p-4 font-semibold text-[#1e293b]">{student.name}</td>
+                                  <td className="p-4 text-right">
+                                    <button className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all" onClick={async () => {
+                                      if(confirm("Are you sure?")) {
+                                        await deleteDoc(doc(db, 'students', student.id));
+                                        fetchStudents();
+                                      }
+                                    }}>
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
               </motion.div>
             )}
@@ -316,29 +350,71 @@ export default function TeacherDashboard() {
                 <div className="glass p-6 rounded-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all flex flex-col max-h-[600px]">
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-[14px] font-semibold text-[#64748b]">Attendance Roll Call</span>
-                    <span className="bg-[#ecfdf5] text-[#059669] px-2 py-1 rounded-md text-[11px] font-bold tracking-tight">Live</span>
+                    {attendanceDate === new Date().toISOString().split('T')[0] ? (
+                      <span className="bg-[#ecfdf5] text-[#059669] px-2 py-1 rounded-md text-[11px] font-bold tracking-tight">Live</span>
+                    ) : (
+                      <span className="bg-slate-100 text-slate-500 px-2 py-1 rounded-md text-[11px] font-bold tracking-tight">{attendanceDate}</span>
+                    )}
                   </div>
-                  <div className="space-y-1 flex-1 overflow-y-auto mb-4">
-                    {students.map(student => (
-                      <div key={student.id} className="flex justify-between items-center py-2.5 border-b border-[#f1f5f9] transition-colors hover:bg-slate-50 px-2 rounded-lg">
-                        <span className="text-[13px] text-[#1e293b] font-medium">{student.rollNumber}. {student.name}</span>
-                        <div className="flex items-center gap-3">
-                          <button 
-                            onClick={() => handleRecordAttendance(student.id, 'present')}
-                            className="text-[#3b82f6] font-bold text-[13px] hover:scale-110 transition-transform px-1"
-                          >
-                            P
-                          </button>
-                          <span className="text-[#cbd5e1] text-[10px]">|</span>
-                          <button 
-                            onClick={() => handleRecordAttendance(student.id, 'absent')}
-                            className="text-[#ef4444] font-bold text-[13px] hover:scale-110 transition-transform px-1"
-                          >
-                            A
-                          </button>
+                  <div className="space-y-4 flex-1 overflow-y-auto mb-4 pr-2">
+                    {Object.keys(students.reduce((acc, student) => {
+                      if (!acc[student.classId]) acc[student.classId] = [];
+                      acc[student.classId].push(student);
+                      return acc;
+                    }, {} as Record<string, Student[]>)).sort().map(classId => {
+                      const classStudents = students.filter(s => s.classId === classId)
+                        .sort((a,b) => {
+                          const numA = parseInt(a.rollNumber);
+                          const numB = parseInt(b.rollNumber);
+                          if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                          return a.rollNumber.localeCompare(b.rollNumber);
+                        });
+                        
+                      return (
+                        <div key={classId} className="bg-white rounded-xl border border-[#e2e8f0] overflow-hidden shadow-sm">
+                          <div className="bg-[#f8fafc] px-3 py-2 border-b border-[#e2e8f0]">
+                            <span className="text-[12px] font-bold text-[#64748b]">Class {classId}</span>
+                          </div>
+                          <div className="divide-y divide-[#f1f5f9]">
+                            {classStudents.map(student => {
+                              const record = attendanceRecords.find(r => r.studentId === student.id);
+                              return (
+                                <div key={student.id} className="flex justify-between items-center py-2 px-3 transition-colors hover:bg-slate-50">
+                                  <span className="text-[13px] text-[#1e293b] font-medium">{student.rollNumber}. {student.name}</span>
+                                  <div className="flex items-center gap-2">
+                                    <button 
+                                      onClick={() => handleRecordAttendance(student.id, 'present')}
+                                      className={cn(
+                                        "font-bold text-[13px] transition-all px-2 py-1 rounded-md border border-transparent",
+                                        record?.status === 'present' 
+                                          ? "bg-[#ecfdf5] text-[#059669] border-[#059669]" 
+                                          : "text-[#3b82f6] hover:bg-blue-50"
+                                      )}
+                                    >
+                                      P
+                                    </button>
+                                    <span className="text-[#cbd5e1] text-[10px]">|</span>
+                                    <button 
+                                      onClick={() => handleRecordAttendance(student.id, 'absent')}
+                                      className={cn(
+                                        "font-bold text-[13px] transition-all px-2 py-1 rounded-md border border-transparent",
+                                        record?.status === 'absent' 
+                                          ? "bg-[#fef2f2] text-[#ef4444] border-[#ef4444]" 
+                                          : "text-[#ef4444] hover:bg-red-50"
+                                      )}
+                                    >
+                                      A
+                                    </button>
+                                  </div>
+                                </div>
+                              )})}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
+                    {students.length === 0 && (
+                      <div className="text-center p-4 text-[#64748b] text-[13px]">No students available.</div>
+                    )}
                   </div>
                   <button className="bg-[#3b82f6] text-white font-semibold text-[13px] rounded-lg py-2.5 w-full hover:bg-blue-600 transition-all mt-auto">
                     Submit Final Roll Call
@@ -357,43 +433,57 @@ export default function TeacherDashboard() {
                   </div>
                   
                   <div className="flex-1 overflow-auto bg-white rounded-xl border border-[#e2e8f0] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-                    <table className="w-full text-left border-collapse text-[13px]">
-                      <thead className="bg-[#f8fafc] border-b border-[#e2e8f0] sticky top-0">
-                        <tr>
-                          <th className="p-3 text-[#94a3b8] font-medium">Roll No</th>
-                          <th className="p-3 text-[#94a3b8] font-medium">Student Name</th>
-                          <th className="p-3 text-[#94a3b8] font-medium">Class</th>
-                          <th className="p-3 text-[#94a3b8] font-medium text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {attendanceRecords.length === 0 ? (
-                           <tr>
-                             <td colSpan={4} className="p-4 text-center text-[#94a3b8]">No records found for this date.</td>
-                           </tr>
-                        ) : (
-                          students
-                            .filter(s => attendanceRecords.some(r => r.studentId === s.id))
-                            .map(student => {
-                              const record = attendanceRecords.find(r => r.studentId === student.id);
-                              return (
-                                <tr key={student.id} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors">
-                                  <td className="p-3 font-mono text-[12px] text-[#64748b]">{student.rollNumber}</td>
-                                  <td className="p-3 font-semibold text-[#1e293b]">{student.name}</td>
-                                  <td className="p-3 text-[#64748b]">{student.classId}</td>
-                                  <td className="p-3 text-center">
-                                    {record?.status === 'present' ? (
-                                      <span className="bg-[#ecfdf5] text-[#059669] px-2 py-1 rounded-md text-[11px] font-bold">Present</span>
-                                    ) : (
-                                      <span className="bg-[#fef2f2] text-[#ef4444] px-2 py-1 rounded-md text-[11px] font-bold">Absent</span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                          })
-                        )}
-                      </tbody>
-                    </table>
+                    {attendanceRecords.length === 0 ? (
+                      <div className="p-8 text-center text-[#94a3b8] text-[13px]">No records found for this date.</div>
+                    ) : (
+                      <div className="divide-y divide-[#e2e8f0]">
+                        {Object.keys(students.reduce((acc, student) => {
+                          if (!acc[student.classId]) acc[student.classId] = [];
+                          acc[student.classId].push(student);
+                          return acc;
+                        }, {} as Record<string, Student[]>)).sort().map(classId => {
+                          const classStudentsWithRecords = students
+                            .filter(s => s.classId === classId && attendanceRecords.some(r => r.studentId === s.id))
+                            .sort((a,b) => {
+                              const numA = parseInt(a.rollNumber);
+                              const numB = parseInt(b.rollNumber);
+                              if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                              return a.rollNumber.localeCompare(b.rollNumber);
+                            });
+
+                          if (classStudentsWithRecords.length === 0) return null;
+
+                          return (
+                            <div key={classId}>
+                              <div className="bg-[#f8fafc] px-4 py-2 sticky top-0 border-b border-[#e2e8f0] flex justify-between items-center z-10">
+                                <span className="text-[13px] font-bold text-[#475569]">Class {classId}</span>
+                                <span className="text-[11px] text-[#64748b]">{classStudentsWithRecords.length} Records</span>
+                              </div>
+                              <table className="w-full text-left border-collapse text-[13px]">
+                                <tbody>
+                                  {classStudentsWithRecords.map(student => {
+                                    const record = attendanceRecords.find(r => r.studentId === student.id);
+                                    return (
+                                      <tr key={student.id} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors last:border-b-0">
+                                        <td className="p-3 font-mono text-[12px] text-[#64748b] w-20">{student.rollNumber}</td>
+                                        <td className="p-3 font-semibold text-[#1e293b]">{student.name}</td>
+                                        <td className="p-3 text-right w-24">
+                                          {record?.status === 'present' ? (
+                                            <span className="bg-[#ecfdf5] text-[#059669] px-2 py-1 rounded-md text-[11px] font-bold">Present</span>
+                                          ) : (
+                                            <span className="bg-[#fef2f2] text-[#ef4444] px-2 py-1 rounded-md text-[11px] font-bold">Absent</span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>
