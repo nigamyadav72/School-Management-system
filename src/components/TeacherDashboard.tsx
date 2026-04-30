@@ -4,7 +4,7 @@ import {
   Trash2, Send, LayoutDashboard, LogOut, FileText 
 } from 'lucide-react';
 import { 
-  collection, addDoc, query, getDocs, where, deleteDoc, doc, serverTimestamp, orderBy 
+  collection, addDoc, query, getDocs, where, deleteDoc, doc, serverTimestamp, orderBy, setDoc, getDoc 
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { Student, AttendanceRecord, MarkRecord, NoteRecord } from '../types';
@@ -17,6 +17,10 @@ export default function TeacherDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'attendance' | 'marks' | 'notes'>('overview');
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Attendance history states
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Form states
   const [newStudent, setNewStudent] = useState({ name: '', rollNumber: '', classId: '', parentEmail: '' });
@@ -36,14 +40,47 @@ export default function TeacherDashboard() {
     setLoading(false);
   };
 
+  useEffect(() => {
+    if (activeTab === 'attendance') {
+      fetchAttendanceRecords(attendanceDate);
+    }
+  }, [activeTab, attendanceDate]);
+
+  const fetchAttendanceRecords = async (date: string) => {
+    try {
+      const q = query(collection(db, 'attendance'), where('date', '==', date));
+      const querySnapshot = await getDocs(q);
+      const records = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+      setAttendanceRecords(records);
+    } catch (error) {
+      console.error("Error fetching attendance:", error);
+    }
+  };
+
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'students'), newStudent);
+      // Create a primary key combining class, roll, and name
+      const sanitizedName = newStudent.name.trim().toLowerCase().replace(/\s+/g, '_');
+      const sanitizedRoll = newStudent.rollNumber.trim().toLowerCase();
+      const sanitizedClass = newStudent.classId.trim().toLowerCase();
+      
+      const primaryKey = `${sanitizedClass}_${sanitizedRoll}_${sanitizedName}`;
+      const studentRef = doc(db, 'students', primaryKey);
+      
+      // Check if the student already exists
+      const studentSnap = await getDoc(studentRef);
+      if (studentSnap.exists()) {
+        alert("A student with this name and roll number already exists in this class!");
+        return;
+      }
+
+      await setDoc(studentRef, newStudent);
       setNewStudent({ name: '', rollNumber: '', classId: '', parentEmail: '' });
       fetchStudents();
     } catch (error) {
       console.error("Error adding student:", error);
+      alert("Failed to add student. Please try again.");
     }
   };
 
@@ -52,14 +89,22 @@ export default function TeacherDashboard() {
       const student = students.find(s => s.id === studentId);
       if (!student) return;
 
+      const dateStr = new Date().toISOString().split('T')[0];
       const record: AttendanceRecord = {
         studentId,
-        date: new Date().toISOString().split('T')[0],
+        date: dateStr,
         status,
         classId: student.classId
       };
-      await addDoc(collection(db, 'attendance'), record);
-      alert(`Attendance recorded for ${student.name}`);
+      
+      const recordId = `${studentId}_${dateStr}`;
+      await setDoc(doc(db, 'attendance', recordId), record);
+      
+      // Refresh the currently viewed attendance history if it's the same date
+      if (attendanceDate === dateStr) {
+        fetchAttendanceRecords(dateStr);
+      }
+      
     } catch (error) {
       console.error("Error recording attendance:", error);
     }
@@ -266,9 +311,9 @@ export default function TeacherDashboard() {
                  key="attendance"
                  initial={{ opacity: 0 }}
                  animate={{ opacity: 1 }}
-                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                 className="grid grid-cols-1 md:grid-cols-3 gap-6"
               >
-                <div className="glass p-6 rounded-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+                <div className="glass p-6 rounded-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all flex flex-col max-h-[600px]">
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-[14px] font-semibold text-[#64748b]">Attendance Roll Call</span>
                     <span className="bg-[#ecfdf5] text-[#059669] px-2 py-1 rounded-md text-[11px] font-bold tracking-tight">Live</span>
@@ -295,9 +340,61 @@ export default function TeacherDashboard() {
                       </div>
                     ))}
                   </div>
-                  <button className="bg-[#3b82f6] text-white font-semibold text-[13px] rounded-lg py-2.5 w-full hover:bg-blue-600 transition-all">
+                  <button className="bg-[#3b82f6] text-white font-semibold text-[13px] rounded-lg py-2.5 w-full hover:bg-blue-600 transition-all mt-auto">
                     Submit Final Roll Call
                   </button>
+                </div>
+                
+                <div className="glass p-6 rounded-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] md:col-span-2 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all flex flex-col max-h-[600px]">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-[14px] font-semibold text-[#64748b]">Daily Attendance History</span>
+                    <input 
+                      type="date" 
+                      value={attendanceDate}
+                      onChange={(e) => setAttendanceDate(e.target.value)}
+                      className="p-1.5 text-[12px] bg-white rounded-lg border border-[#e2e8f0] focus:ring-1 focus:ring-[#3b82f6] outline-none"
+                    />
+                  </div>
+                  
+                  <div className="flex-1 overflow-auto bg-white rounded-xl border border-[#e2e8f0] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+                    <table className="w-full text-left border-collapse text-[13px]">
+                      <thead className="bg-[#f8fafc] border-b border-[#e2e8f0] sticky top-0">
+                        <tr>
+                          <th className="p-3 text-[#94a3b8] font-medium">Roll No</th>
+                          <th className="p-3 text-[#94a3b8] font-medium">Student Name</th>
+                          <th className="p-3 text-[#94a3b8] font-medium">Class</th>
+                          <th className="p-3 text-[#94a3b8] font-medium text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {attendanceRecords.length === 0 ? (
+                           <tr>
+                             <td colSpan={4} className="p-4 text-center text-[#94a3b8]">No records found for this date.</td>
+                           </tr>
+                        ) : (
+                          students
+                            .filter(s => attendanceRecords.some(r => r.studentId === s.id))
+                            .map(student => {
+                              const record = attendanceRecords.find(r => r.studentId === student.id);
+                              return (
+                                <tr key={student.id} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors">
+                                  <td className="p-3 font-mono text-[12px] text-[#64748b]">{student.rollNumber}</td>
+                                  <td className="p-3 font-semibold text-[#1e293b]">{student.name}</td>
+                                  <td className="p-3 text-[#64748b]">{student.classId}</td>
+                                  <td className="p-3 text-center">
+                                    {record?.status === 'present' ? (
+                                      <span className="bg-[#ecfdf5] text-[#059669] px-2 py-1 rounded-md text-[11px] font-bold">Present</span>
+                                    ) : (
+                                      <span className="bg-[#fef2f2] text-[#ef4444] px-2 py-1 rounded-md text-[11px] font-bold">Absent</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </motion.div>
             )}
