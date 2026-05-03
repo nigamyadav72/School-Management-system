@@ -9,6 +9,7 @@ import { Student, AttendanceRecord, MarkRecord, NoteRecord } from '../types';
 import { useAuth } from './AuthProvider';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
+import LiveClassRoom from './LiveClassRoom';
 
 export default function ParentDashboard() {
   const { profile } = useAuth();
@@ -18,6 +19,7 @@ export default function ParentDashboard() {
   const [marks, setMarks] = useState<MarkRecord[]>([]);
   const [notes, setNotes] = useState<NoteRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeMeeting, setActiveMeeting] = useState<string | null>(null);
 
   useEffect(() => {
     fetchChildren();
@@ -229,14 +231,17 @@ export default function ParentDashboard() {
                       <p className="text-[11px] text-[#94a3b8]">{note.type === 'class_link' ? 'Online Class Session' : 'Study Resource'}</p>
                     </div>
                     {note.type === 'class_link' ? (
-                      <a 
-                        href={note.url} target="_blank" rel="noopener noreferrer"
+                      <button 
+                        onClick={() => setActiveMeeting(note.url as string)}
                         className="bg-[#3b82f6] text-white font-semibold text-[12px] px-4 py-2 rounded-lg hover:bg-blue-600 transition-all self-center"
                       >
                         Join Class
-                      </a>
+                      </button>
                     ) : (
-                      <button className="bg-[#f8fafc] text-[#1e293b] border border-[#e2e8f0] font-semibold text-[12px] px-4 py-2 rounded-lg hover:bg-[#f1f5f9] transition-all self-center">
+                      <button 
+                        onClick={() => note.url && window.open(note.url, '_blank')}
+                        className="bg-[#f8fafc] text-[#1e293b] border border-[#e2e8f0] font-semibold text-[12px] px-4 py-2 rounded-lg hover:bg-[#f1f5f9] transition-all self-center"
+                      >
                         View
                       </button>
                     )}
@@ -247,6 +252,15 @@ export default function ParentDashboard() {
           </section>
         </div>
       </main>
+      {activeMeeting && (
+        <LiveClassRoom
+          roomName={activeMeeting}
+          userName={profile?.name || 'Parent'}
+          userEmail={profile?.email || ''}
+          isTeacher={false}
+          onClose={() => setActiveMeeting(null)}
+        />
+      )}
     </div>
   );
 }

@@ -6,11 +6,13 @@ import {
 import { 
   collection, addDoc, query, getDocs, where, deleteDoc, doc, serverTimestamp, orderBy, setDoc, getDoc 
 } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { auth, db, storage } from '../lib/firebase';
 import { Student, AttendanceRecord, MarkRecord, NoteRecord } from '../types';
 import { useAuth } from './AuthProvider';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+import LiveClassRoom from './LiveClassRoom';
 
 export default function TeacherDashboard() {
   const { profile } = useAuth();
@@ -21,6 +23,16 @@ export default function TeacherDashboard() {
   // Attendance history states
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Marks history state
+  const [marksRecords, setMarksRecords] = useState<MarkRecord[]>([]);
+
+  // Notes state
+  const [notesList, setNotesList] = useState<NoteRecord[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [activeMeeting, setActiveMeeting] = useState<string | null>(null);
+  const [meetingClassId, setMeetingClassId] = useState('');
 
   // Form states
   const [newStudent, setNewStudent] = useState({ name: '', rollNumber: '', classId: '', parentEmail: '' });
@@ -44,7 +56,41 @@ export default function TeacherDashboard() {
     if (activeTab === 'attendance') {
       fetchAttendanceRecords(attendanceDate);
     }
+    if (activeTab === 'marks') {
+      fetchMarksRecords();
+    }
+    if (activeTab === 'notes') {
+      fetchNotesRecords();
+    }
   }, [activeTab, attendanceDate]);
+
+  const fetchNotesRecords = async () => {
+    try {
+      const q = query(collection(db, 'notes'));
+      const querySnapshot = await getDocs(q);
+      const records = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as NoteRecord));
+      records.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return timeB - timeA;
+      });
+      setNotesList(records);
+    } catch (error) {
+      console.error("Error fetching notes:", error);
+    }
+  };
+
+  const fetchMarksRecords = async () => {
+    try {
+      const q = query(collection(db, 'marks'));
+      const querySnapshot = await getDocs(q);
+      const records = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MarkRecord));
+      records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setMarksRecords(records);
+    } catch (error) {
+      console.error("Error fetching marks:", error);
+    }
+  };
 
   const fetchAttendanceRecords = async (date: string) => {
     try {
@@ -127,6 +173,7 @@ export default function TeacherDashboard() {
       await addDoc(collection(db, 'marks'), newMark);
       setNewMark({ studentId: '', subject: '', score: 0, maxScore: 100, date: new Date().toISOString().split('T')[0] });
       alert("Mark added successfully");
+      fetchMarksRecords();
     } catch (error) {
       console.error("Error adding mark:", error);
     }
@@ -135,14 +182,31 @@ export default function TeacherDashboard() {
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      setUploading(true);
+      let finalUrl = newNote.url;
+
+      if (newNote.type === 'class_link') {
+        finalUrl = `EduPulse-Class-${newNote.classId}-${Date.now()}`;
+      } else if (newNote.type === 'note' && selectedFile) {
+        const fileRef = ref(storage, `notes/${Date.now()}_${selectedFile.name}`);
+        const uploadTask = await uploadBytesResumable(fileRef, selectedFile);
+        finalUrl = await getDownloadURL(uploadTask.ref);
+      }
+
       await addDoc(collection(db, 'notes'), {
         ...newNote,
+        url: finalUrl,
         createdAt: serverTimestamp()
       });
       setNewNote({ classId: '', title: '', content: '', type: 'note', url: '' });
+      setSelectedFile(null);
       alert("Note added successfully");
+      fetchNotesRecords();
     } catch (error) {
       console.error("Error adding note:", error);
+      alert("Error adding note. Please try again.");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -505,7 +569,7 @@ export default function TeacherDashboard() {
                       required
                     >
                       <option value="">Select Student</option>
-                      {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      {students.map(s => <option key={s.id} value={s.id}>[{s.classId}] {s.name}</option>)}
                     </select>
                     <input 
                       type="text" placeholder="Subject" 
@@ -531,6 +595,55 @@ export default function TeacherDashboard() {
                       Update Gradebook
                     </button>
                   </form>
+                </div>
+
+                <div className="glass p-6 rounded-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+                  <h3 className="text-[14px] font-semibold text-[#1e293b] mb-4">Recent Marks Added</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-[13px]">
+                      <thead className="bg-[#f8fafc] border-b border-[#e2e8f0]">
+                        <tr>
+                          <th className="p-4 text-[#94a3b8] font-medium">Date</th>
+                          <th className="p-4 text-[#94a3b8] font-medium">Class</th>
+                          <th className="p-4 text-[#94a3b8] font-medium">Student Name</th>
+                          <th className="p-4 text-[#94a3b8] font-medium">Subject</th>
+                          <th className="p-4 text-[#94a3b8] font-medium">Score</th>
+                          <th className="p-4 text-[#94a3b8] font-medium w-24 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {marksRecords.map(mark => {
+                          const student = students.find(s => s.id === mark.studentId);
+                          return (
+                            <tr key={mark.id} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-colors group">
+                              <td className="p-4 text-[#64748b]">{mark.date}</td>
+                              <td className="p-4 text-[#64748b] font-medium">{student ? student.classId : 'N/A'}</td>
+                              <td className="p-4 font-semibold text-[#1e293b]">{student ? student.name : 'Unknown Student'}</td>
+                              <td className="p-4 text-[#64748b]">{mark.subject}</td>
+                              <td className="p-4 text-[#1e293b] font-medium">{mark.score} / {mark.maxScore}</td>
+                              <td className="p-4 text-right">
+                                <button className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all" onClick={async () => {
+                                  if(confirm("Are you sure you want to delete this mark?")) {
+                                    if(mark.id) {
+                                      await deleteDoc(doc(db, 'marks', mark.id));
+                                      fetchMarksRecords();
+                                    }
+                                  }
+                                }}>
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {marksRecords.length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="p-8 text-center text-[#94a3b8]">No marks recorded yet.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -572,38 +685,113 @@ export default function TeacherDashboard() {
                       value={newNote.content} onChange={e => setNewNote({...newNote, content: e.target.value})}
                       required
                     />
-                    {newNote.type === 'class_link' && (
+                    {newNote.type === 'class_link' ? null : (
                       <input 
-                        type="url" placeholder="Session URL (Zoom/Meet)" 
+                        type="file" 
                         className="w-full p-2.5 text-[13px] bg-[#f8fafc] rounded-lg border border-[#e2e8f0] outline-none"
-                        value={newNote.url} onChange={e => setNewNote({...newNote, url: e.target.value})}
+                        onChange={e => setSelectedFile(e.target.files ? e.target.files[0] : null)}
                         required
+                        accept=".pdf,.doc,.docx,.ppt,.pptx,.txt"
                       />
                     )}
-                    <button type="submit" className="w-full bg-[#0f172a] text-white font-semibold text-[13px] rounded-lg py-2.5 hover:bg-slate-800 transition-all flex items-center justify-center gap-2">
-                      <Send className="w-4 h-4" /> Publish Resource
+                    <button type="submit" disabled={uploading} className="w-full bg-[#0f172a] text-white font-semibold text-[13px] rounded-lg py-2.5 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+                      <Send className="w-4 h-4" /> {uploading ? 'Publishing...' : 'Publish Resource'}
                     </button>
                   </form>
                 </div>
 
                 <div className="glass p-6 rounded-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all flex flex-col">
                   <div className="flex justify-between items-center mb-6">
-                    <span className="text-[14px] font-semibold text-[#1e293b]">Upcoming Virtual Activity</span>
+                    <span className="text-[14px] font-semibold text-[#1e293b]">Quick Start Live Class</span>
                   </div>
-                  <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-[#eff6ff] rounded-xl">
-                    <span className="text-[13px] text-[#1e293b] mb-1">Session Starts In</span>
-                    <div className="text-[32px] font-bold text-[#1d4ed8] tracking-tight">00:14:52</div>
-                    <span className="text-[11px] text-[#64748b] mt-2">Waiting for student check-ins...</span>
+                  <div className="flex-1 flex flex-col justify-center gap-4 bg-[#eff6ff] rounded-xl p-6">
+                    <p className="text-[13px] text-[#64748b] text-center">Instantly create a secure virtual classroom.</p>
+                    <input 
+                      type="text" 
+                      placeholder="Class ID (e.g. 10-A)" 
+                      className="w-full p-2.5 text-[13px] bg-white rounded-lg border border-[#e2e8f0] outline-none text-center"
+                      value={meetingClassId} 
+                      onChange={e => setMeetingClassId(e.target.value)}
+                    />
                   </div>
-                  <button className="mt-6 bg-[#3b82f6] text-white font-semibold text-[13px] rounded-lg py-3 w-full hover:bg-blue-600 shadow-md shadow-blue-100 transition-all">
+                  <button 
+                    onClick={() => {
+                      if (!meetingClassId) {
+                        alert("Please enter a Class ID to start a meeting.");
+                        return;
+                      }
+                      setActiveMeeting(`EduPulse-Class-${meetingClassId}-${Date.now()}`);
+                    }}
+                    className="mt-6 bg-[#3b82f6] text-white font-semibold text-[13px] rounded-lg py-3 w-full hover:bg-blue-600 shadow-md shadow-blue-100 transition-all"
+                  >
                     Initialize Meeting Space
                   </button>
+                </div>
+
+                <div className="glass p-6 rounded-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all md:col-span-2">
+                  <h3 className="text-[14px] font-semibold text-[#1e293b] mb-4">Published Resources & Notes</h3>
+                  <div className="space-y-4">
+                    {notesList.map((note) => (
+                      <div key={note.id} className="flex gap-4 p-4 rounded-xl border border-[#f1f5f9] hover:border-[#e2e8f0] transition-all bg-white">
+                        <div className="w-10 h-10 bg-[#f1f5f9] rounded-lg flex items-center justify-center shrink-0">
+                          <BookOpen className="text-[#64748b] w-5 h-5" />
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-bold text-[14px] text-[#1e293b]">{note.title}</h4>
+                            <span className="text-[10px] font-bold text-[#64748b] bg-[#f1f5f9] px-2 py-0.5 rounded-md">Class: {note.classId}</span>
+                          </div>
+                          <p className="text-[12px] text-[#64748b] mb-2">{note.content}</p>
+                          <p className="text-[11px] text-[#94a3b8]">{note.type === 'class_link' ? 'Online Class Session' : 'Study Resource'}</p>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          {note.url && (
+                            note.type === 'class_link' ? (
+                              <button 
+                                onClick={() => setActiveMeeting(note.url as string)}
+                                className="bg-[#3b82f6] text-white hover:bg-blue-600 font-semibold text-[12px] px-4 py-2 rounded-lg transition-all"
+                              >
+                                Join Class
+                              </button>
+                            ) : (
+                              <a 
+                                href={note.url} target="_blank" rel="noopener noreferrer"
+                                className="bg-[#f8fafc] text-[#1e293b] border border-[#e2e8f0] hover:bg-[#f1f5f9] font-semibold text-[12px] px-4 py-2 rounded-lg transition-all"
+                              >
+                                View Resource
+                              </a>
+                            )
+                          )}
+                          <button className="text-red-400 hover:text-red-600 transition-all p-2" onClick={async () => {
+                            if(confirm("Are you sure you want to delete this resource?")) {
+                              if(note.id) {
+                                await deleteDoc(doc(db, 'notes', note.id));
+                                fetchNotesRecords();
+                              }
+                            }
+                          }}>
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {notesList.length === 0 && <p className="text-center text-[#94a3b8] py-6 text-[13px]">No resources published yet.</p>}
+                  </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </main>
       </div>
+      {activeMeeting && (
+        <LiveClassRoom
+          roomName={activeMeeting}
+          userName={profile?.name || 'Teacher'}
+          userEmail={profile?.email || ''}
+          isTeacher={true}
+          onClose={() => setActiveMeeting(null)}
+        />
+      )}
     </div>
   );
 }
