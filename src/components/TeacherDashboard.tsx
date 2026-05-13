@@ -36,7 +36,7 @@ export default function TeacherDashboard() {
 
   // Form states
   const [newStudent, setNewStudent] = useState({ name: '', rollNumber: '', classId: '', parentEmail: '' });
-  const [newMark, setNewMark] = useState({ studentId: '', subject: '', score: '' as any, maxScore: 100 as any, date: new Date().toISOString().split('T')[0] });
+  const [newMark, setNewMark] = useState({ studentId: '', subject: '', exam: '', score: '' as any, maxScore: 100 as any, date: new Date().toISOString().split('T')[0] });
   const [newNote, setNewNote] = useState({ classId: '', title: '', content: '', type: 'note' as const, url: '' });
 
   useEffect(() => {
@@ -171,36 +171,25 @@ export default function TeacherDashboard() {
     e.preventDefault();
     try {
       const subjectKey = newMark.subject.toLowerCase().trim();
-      const markId = `${newMark.studentId}_${subjectKey}`;
+      const examKey = newMark.exam.toLowerCase().trim();
+      const markId = `${newMark.studentId}_${subjectKey}_${examKey}`;
       const markRef = doc(db, 'marks', markId);
       
-      const markSnap = await getDoc(markRef);
       const currentScore = Number(newMark.score);
       const currentMaxScore = Number(newMark.maxScore) || 100;
 
-      if (markSnap.exists()) {
-        const existingData = markSnap.data() as MarkRecord;
-        await setDoc(markRef, {
-          ...newMark,
-          score: Number(existingData.score) + currentScore,
-          maxScore: currentMaxScore,
-          date: new Date().toISOString().split('T')[0]
-        });
-        alert("Marks updated successfully! Added to existing record.");
-      } else {
-        await setDoc(markRef, {
-          ...newMark,
-          score: currentScore,
-          maxScore: currentMaxScore
-        });
-        alert("Mark added successfully");
-      }
-
-      setNewMark({ studentId: '', subject: '', score: '' as any, maxScore: 100 as any, date: new Date().toISOString().split('T')[0] });
+      await setDoc(markRef, {
+        ...newMark,
+        score: currentScore,
+        maxScore: currentMaxScore
+      });
+      
+      alert(`Mark recorded for ${newMark.exam} successfully!`);
+      setNewMark({ studentId: '', subject: '', exam: '', score: '' as any, maxScore: 100 as any, date: new Date().toISOString().split('T')[0] });
       fetchMarksRecords();
     } catch (error) {
       console.error("Error adding mark:", error);
-      alert("Failed to update marks.");
+      alert("Failed to record marks.");
     }
   };
 
@@ -587,7 +576,7 @@ export default function TeacherDashboard() {
               >
                 <div className="glass p-6 rounded-2xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
                   <h3 className="text-[14px] font-semibold text-[#1e293b] mb-4">Entry Results</h3>
-                  <form onSubmit={handleAddMark} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <form onSubmit={handleAddMark} className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <select 
                       className="p-2.5 text-[13px] bg-[#f8fafc] rounded-lg border border-[#e2e8f0] focus:ring-1 focus:ring-[#3b82f6] outline-none"
                       value={newMark.studentId} onChange={e => setNewMark({...newMark, studentId: e.target.value})}
@@ -602,6 +591,17 @@ export default function TeacherDashboard() {
                       value={newMark.subject} onChange={e => setNewMark({...newMark, subject: e.target.value})}
                       required
                     />
+                    <select 
+                      className="p-2.5 text-[13px] bg-[#f8fafc] rounded-lg border border-[#e2e8f0] focus:ring-1 focus:ring-[#3b82f6] outline-none"
+                      value={newMark.exam} onChange={e => setNewMark({...newMark, exam: e.target.value})}
+                      required
+                    >
+                      <option value="">Select Exam</option>
+                      <option value="Unit Test">Unit Test</option>
+                      <option value="First Term">First Term</option>
+                      <option value="Mid Term">Mid Term</option>
+                      <option value="Final Exam">Final Exam</option>
+                    </select>
                     <div className="flex gap-2">
                       <input 
                         type="number" placeholder="Score" 
@@ -632,6 +632,7 @@ export default function TeacherDashboard() {
                           <th className="p-4 text-[#94a3b8] font-medium">Class</th>
                           <th className="p-4 text-[#94a3b8] font-medium">Student Name</th>
                           <th className="p-4 text-[#94a3b8] font-medium">Subject</th>
+                          <th className="p-4 text-[#94a3b8] font-medium">Exam</th>
                           <th className="p-4 text-[#94a3b8] font-medium">Score</th>
                           <th className="p-4 text-[#94a3b8] font-medium w-24 text-right">Actions</th>
                         </tr>
@@ -645,6 +646,9 @@ export default function TeacherDashboard() {
                               <td className="p-4 text-[#64748b] font-medium">{student ? student.classId : 'N/A'}</td>
                               <td className="p-4 font-semibold text-[#1e293b]">{student ? student.name : 'Unknown Student'}</td>
                               <td className="p-4 text-[#64748b]">{mark.subject}</td>
+                              <td className="p-4 text-[#64748b]">
+                                <span className="bg-slate-100 px-2 py-1 rounded text-[11px] font-medium">{mark.exam}</span>
+                              </td>
                               <td className="p-4 text-[#1e293b] font-medium">{mark.score} / {mark.maxScore}</td>
                               <td className="p-4 text-right">
                                 <button className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all" onClick={async () => {
