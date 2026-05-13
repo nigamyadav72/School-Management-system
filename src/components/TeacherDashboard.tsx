@@ -36,7 +36,7 @@ export default function TeacherDashboard() {
 
   // Form states
   const [newStudent, setNewStudent] = useState({ name: '', rollNumber: '', classId: '', parentEmail: '' });
-  const [newMark, setNewMark] = useState({ studentId: '', subject: '', score: 0, maxScore: 100, date: new Date().toISOString().split('T')[0] });
+  const [newMark, setNewMark] = useState({ studentId: '', subject: '', score: '' as any, maxScore: 100 as any, date: new Date().toISOString().split('T')[0] });
   const [newNote, setNewNote] = useState({ classId: '', title: '', content: '', type: 'note' as const, url: '' });
 
   useEffect(() => {
@@ -170,12 +170,37 @@ export default function TeacherDashboard() {
   const handleAddMark = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await addDoc(collection(db, 'marks'), newMark);
-      setNewMark({ studentId: '', subject: '', score: 0, maxScore: 100, date: new Date().toISOString().split('T')[0] });
-      alert("Mark added successfully");
+      const subjectKey = newMark.subject.toLowerCase().trim();
+      const markId = `${newMark.studentId}_${subjectKey}`;
+      const markRef = doc(db, 'marks', markId);
+      
+      const markSnap = await getDoc(markRef);
+      const currentScore = Number(newMark.score);
+      const currentMaxScore = Number(newMark.maxScore) || 100;
+
+      if (markSnap.exists()) {
+        const existingData = markSnap.data() as MarkRecord;
+        await setDoc(markRef, {
+          ...newMark,
+          score: Number(existingData.score) + currentScore,
+          maxScore: currentMaxScore,
+          date: new Date().toISOString().split('T')[0]
+        });
+        alert("Marks updated successfully! Added to existing record.");
+      } else {
+        await setDoc(markRef, {
+          ...newMark,
+          score: currentScore,
+          maxScore: currentMaxScore
+        });
+        alert("Mark added successfully");
+      }
+
+      setNewMark({ studentId: '', subject: '', score: '' as any, maxScore: 100 as any, date: new Date().toISOString().split('T')[0] });
       fetchMarksRecords();
     } catch (error) {
       console.error("Error adding mark:", error);
+      alert("Failed to update marks.");
     }
   };
 
@@ -581,13 +606,13 @@ export default function TeacherDashboard() {
                       <input 
                         type="number" placeholder="Score" 
                         className="w-1/2 p-2.5 text-[13px] bg-[#f8fafc] rounded-lg border border-[#e2e8f0] focus:ring-1 focus:ring-[#3b82f6] outline-none"
-                        value={newMark.score} onChange={e => setNewMark({...newMark, score: Number(e.target.value)})}
+                        value={newMark.score} onChange={e => setNewMark({...newMark, score: e.target.value})}
                         required
                       />
                       <input 
                         type="number" placeholder="Total" 
                         className="w-1/2 p-2.5 text-[13px] bg-[#f8fafc] rounded-lg border border-[#e2e8f0] focus:ring-1 focus:ring-[#3b82f6] outline-none"
-                        value={newMark.maxScore} onChange={e => setNewMark({...newMark, maxScore: Number(e.target.value)})}
+                        value={newMark.maxScore} onChange={e => setNewMark({...newMark, maxScore: e.target.value})}
                         required
                       />
                     </div>

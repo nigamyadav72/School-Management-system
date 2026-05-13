@@ -28,6 +28,7 @@ export interface MarkRecord {
   id?: string;
   studentId: string;
   subject: string;
+  exam: string;
   score: number;
   maxScore: number;
   date: string;
