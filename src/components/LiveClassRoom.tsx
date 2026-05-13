@@ -1,6 +1,6 @@
 import React from 'react';
 import { JitsiMeeting } from '@jitsi/react-sdk';
-import { X } from 'lucide-react';
+import { X, Link } from 'lucide-react';
 
 interface LiveClassRoomProps {
   roomName: string;
@@ -14,7 +14,19 @@ export default function LiveClassRoom({ roomName, userName, userEmail, isTeacher
   return (
     <div className="fixed inset-0 z-[100] bg-black flex flex-col">
       <div className="bg-[#0f172a] text-white p-4 flex justify-between items-center border-b border-white/10 shrink-0">
-        <div className="font-bold text-lg">Live Class: {roomName.replace('EduPulse-Class-', '')}</div>
+        <div className="flex items-center gap-4">
+          <div className="font-bold text-lg">Live Class: {roomName.replace('EduPulse-Class-', '')}</div>
+          <button 
+            onClick={() => {
+              const url = window.location.origin;
+              navigator.clipboard.writeText(`Join my EduPulse Live Class!\nRoom: ${roomName}\nLink: ${url}`);
+              alert("Invite link and details copied to clipboard!");
+            }}
+            className="text-[12px] bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-md transition-all flex items-center gap-2 border border-white/10"
+          >
+            <Link className="w-3.5 h-3.5" /> Copy Invite Link
+          </button>
+        </div>
         <button 
           onClick={onClose}
           className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-all"
