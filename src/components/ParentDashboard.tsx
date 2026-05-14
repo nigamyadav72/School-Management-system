@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { collection, query, getDocs, where, orderBy, limit } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
-import { Student, AttendanceRecord, MarkRecord, NoteRecord } from '../types';
+import { Student, AttendanceRecord, MarkRecord, NoteRecord, MeetingRecord } from '../types';
 import { useAuth } from './AuthProvider';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -18,6 +18,7 @@ export default function ParentDashboard() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [marks, setMarks] = useState<MarkRecord[]>([]);
   const [notes, setNotes] = useState<NoteRecord[]>([]);
+  const [meetings, setMeetings] = useState<MeetingRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeMeeting, setActiveMeeting] = useState<string | null>(null);
 
@@ -63,6 +64,11 @@ export default function ParentDashboard() {
     const nq = query(collection(db, 'notes'), where('classId', '==', student.classId), orderBy('createdAt', 'desc'));
     const notesSnap = await getDocs(nq);
     setNotes(notesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as NoteRecord)));
+
+    // Fetch Meetings
+    const mq_meetings = query(collection(db, 'meetings'), where('classId', '==', student.classId), orderBy('date', 'asc'));
+    const meetingsSnap = await getDocs(mq_meetings);
+    setMeetings(meetingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as MeetingRecord)));
   };
 
   if (loading) {
@@ -248,6 +254,42 @@ export default function ParentDashboard() {
                  </div>
                ))}
                {notes.length === 0 && <p className="text-center text-[#94a3b8] py-10 font-sans">No recent materials.</p>}
+             </div>
+          </section>
+
+          {/* Upcoming Live Classes */}
+          <section className="glass rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all border border-white/60 relative z-10">
+             <h3 className="text-[16px] font-bold text-[#1e293b] flex items-center gap-2 mb-8">
+               <Calendar className="text-[#3b82f6] w-5 h-5" />
+               Upcoming Live Classes
+             </h3>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               {meetings.filter(m => new Date(m.date) >= new Date(new Date().setHours(0,0,0,0))).map((meeting) => (
+                 <div key={meeting.id} className="bg-white p-5 rounded-2xl border border-[#f1f5f9] hover:border-[#3b82f6]/30 transition-all group">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="w-12 h-12 bg-blue-50 text-[#3b82f6] rounded-xl flex flex-col items-center justify-center border border-blue-100">
+                        <span className="text-[9px] font-bold uppercase leading-none mb-1">{new Date(meeting.date).toLocaleString('default', { month: 'short' })}</span>
+                        <span className="text-[18px] font-black leading-none">{new Date(meeting.date).getDate()}</span>
+                      </div>
+                      <span className="text-[11px] font-bold text-[#64748b] bg-slate-100 px-2 py-1 rounded-md flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> {meeting.time}
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-[15px] text-[#1e293b] mb-1 group-hover:text-[#3b82f6] transition-colors">{meeting.title}</h4>
+                    <p className="text-[12px] text-[#64748b] line-clamp-2 mb-4 h-8">{meeting.description || 'Join the live interactive session.'}</p>
+                    <button 
+                      onClick={() => setActiveMeeting(meeting.meetingLink)}
+                      className="w-full bg-[#3b82f6] text-white font-bold text-[13px] py-2.5 rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-blue-100 active:scale-[0.98]"
+                    >
+                      Join Class Room
+                    </button>
+                 </div>
+               ))}
+               {meetings.filter(m => new Date(m.date) >= new Date(new Date().setHours(0,0,0,0))).length === 0 && (
+                 <div className="col-span-full py-10 text-center bg-slate-50/50 rounded-2xl border border-dashed border-[#e2e8f0]">
+                   <p className="text-[13px] text-[#94a3b8]">No live classes scheduled for today or later.</p>
+                 </div>
+               )}
              </div>
           </section>
         </div>

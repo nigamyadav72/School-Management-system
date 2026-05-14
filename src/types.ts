@@ -43,3 +43,14 @@ export interface NoteRecord {
   url?: string;
   createdAt: any; // Firestore Timestamp
 }
+export interface MeetingRecord {
+  id?: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  classId: string;
+  meetingLink: string;
+  teacherId: string;
+  createdAt: any; // Firestore Timestamp
+}
